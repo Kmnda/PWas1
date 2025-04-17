@@ -1,4 +1,8 @@
-"scripts": {
-  "start": "node index.js",
-  "test": "jest"
-},
+{
+  "name": "pwas1",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest"
+  }
+}
