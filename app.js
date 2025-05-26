@@ -13,6 +13,7 @@ const server = http.createServer((req, res) => {
 server.listen(port, hostname, () => {
   console.log(`Server running at http://<span class="math-inline">\{hostname\}\:</span>{port}/`);
   console.log('Hello, World from my Node.js CI project!'); // For Jenkins log
+  console.log('Hello, World from my Node.js CI project!'); // For Jenkins log
 });
 
 // Optional: Add a simple function that could be "tested"
