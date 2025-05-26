@@ -1,0 +1,13 @@
+{
+  "name": "my-node-ci-project",
+  "version": "1.0.0",
+  "description": "A simple Node.js project for CI demo",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Tests passed (dummy test)\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
