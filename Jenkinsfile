@@ -10,6 +10,8 @@ pipeline {
             }
             steps {
                 script {
+                    sh 'set -e' // <-- ADDED: Exit on first error
+
                     echo "Installing Node.js and Newman..."
                     sh 'npm install -g newman'
                     sh 'npm install -g newman-reporter-html'
@@ -21,11 +23,20 @@ pipeline {
                     sh '. venv_test_env/bin/activate && pip install -r requirements.txt'
 
                     echo "Starting Flask API for integration tests locally (SIMULATION for CI test run)..."
-                    sh 'nohup . venv_test_env/bin/activate && python app.py > api.log 2>&1 &'
-                    sh 'sleep 15' // Increased sleep time
-                    echo "Flask API started."
-                    sh 'cat api.log' // <-- ADDED THIS LINE
-                    echo "--- Flask API Logs End ---" // <-- ADDED THIS LINE
+                    // Use explicit path to python executable
+                    sh 'nohup . venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1 &'
+                    sh 'sleep 15'
+                    echo "Flask API started (attempted)."
+
+                    echo "--- Checking directory contents for api.log ---"
+                    sh 'ls -la' // <-- ADDED: List files to see if api.log exists
+
+                    echo "--- Flask API Logs (if any) ---"
+                    // Use 'cat' with '|| true' so that if api.log still doesn't exist, this step
+                    // doesn't cause the entire pipeline to fail (though 'set -e' would have caught it earlier).
+                    // We expect 'set -e' to fail earlier if Flask didn't start.
+                    sh 'cat api.log || true'
+                    echo "--- Flask API Logs End ---"
 
                     echo "Running Postman integration tests with Newman..."
                     sh "newman run \"Flask API Integration Tests.postman_collection.json\" -e \"Local Flask API.postman_environment.json\" --reporters cli,json,html --reporter-html-export newman-report.html --reporter-json-export newman-report.json"
