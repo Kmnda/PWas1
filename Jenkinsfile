@@ -53,7 +53,8 @@ pipeline {
                     // Archive Newman reports for later viewing in Jenkins
                     archiveArtifacts artifacts: 'newman-report.html, newman-report.json', fingerprint: true
                     // Clean up the Flask API process
-                    sh "kill \$(lsof -t -i:${API_PORT}) || true" # Kills process on port 5001
+                   // Kills process on port ${API_PORT}
+                    sh "kill \$(lsof -t -i:${API_PORT}) || true"
                     echo "Flask API process stopped."
                 }
                 failure {
