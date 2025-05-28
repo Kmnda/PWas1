@@ -1,0 +1,84 @@
+stages:
+  - build
+  - deploy
+  - test
+
+variables:
+  API_PORT: 5001 # Your Flask API is running on 5001, so update this
+
+build_api:
+  stage: build
+  image: python:3.9 # Or your preferred Python version (e.g., python:3.10-slim)
+  script:
+    - echo "Building Flask API..."
+    - python3 -m venv venv # Create a virtual environment
+    - source venv/bin/activate # Activate it
+    - pip install -r requirements.txt # Install Flask API dependencies
+    - echo "Flask API build complete."
+  artifacts:
+    paths:
+      - venv/ # Cache virtual environment for subsequent stages (optional, but good for speed)
+    expire_in: 1 hour
+
+deploy_to_staging:
+  stage: deploy
+  image: docker:latest # Or a specific deployment tool image
+  services:
+    - docker:dind
+  script:
+    - echo "Simulating deployment of Flask API to staging environment..."
+    # IMPORTANT: In a real scenario, this would involve Docker builds, pushing to a registry,
+    # and deploying to a cloud provider or Kubernetes.
+    - echo "Flask API deployed to staging at http://your-staging-api-url:${API_PORT}"
+  environment:
+    name: staging
+    url: http://your-staging-api-url:${API_PORT} # Replace with your actual staging URL (if applicable)
+  # This job depends on a successful build, but for demonstration, it runs always
+  # needs: ["build_api"] # Uncomment if you want explicit dependency
+
+run_integration_tests:
+  stage: test
+  image: node:18 # Newman requires Node.js; use a stable version like 18 or 20
+  dependencies:
+    - build_api # Ensures the build_api stage runs first to make venv available (if cached)
+  before_script:
+    - echo "Setting up Python environment for API..."
+    # Ensure Python and venv are available in the Node.js image
+    - apt-get update && apt-get install -y python3 python3-venv
+    - python3 -m venv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt # Re-install Flask dependencies in this job's venv
+
+    - echo "Installing Newman and its HTML reporter globally..."
+    - npm install -g newman
+    - npm install -g newman-reporter-html # Install the HTML reporter
+
+    - echo "Copying collection and environment files..."
+    # Ensure these names exactly match your files, including capitalization and spaces
+    - cp "Flask API Integration Tests.postman_collection.json" .
+    - cp "Local Flask API.postman_environment.json" .
+
+    # IMPORTANT: This is a SIMULATION for CI test runs.
+    # In a real CI, the API would already be deployed and running on a staging server
+    # at a public URL (http://your-staging-api-url).
+    # For this example, we start it locally within the CI job.
+    - |
+      echo "Starting Flask API for integration tests locally (SIMULATION for CI test run)..."
+      nohup python app.py > api.log 2>&1 & # Run Flask API in background
+      sleep 10 # Give Flask API time to start
+      echo "Flask API started."
+  script:
+    - echo "Running Postman integration tests with Newman..."
+    # Ensure these names exactly match your files, including capitalization and spaces
+    - newman run "Flask API Integration Tests.postman_collection.json" -e "Local Flask API.postman_environment.json" --reporters cli,json,html --reporter-html-export newman-report.html --reporter-json-export newman-report.json
+    - cat newman-report.html # Optional: For debugging, if you want to see HTML in logs
+    - echo "Integration tests finished."
+  artifacts:
+    paths:
+      - newman-report.html
+      - newman-report.json
+    expire_in: 1 day # How long the reports are kept
+  allow_failure: false # If tests fail, the pipeline fails.
+  after_script:
+    - kill $(lsof -t -i:${API_PORT}) || true # Clean up the Flask API process
+    - echo "Flask API process stopped."
