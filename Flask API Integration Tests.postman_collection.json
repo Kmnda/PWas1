@@ -1,0 +1,287 @@
+{
+	"info": {
+		"_postman_id": "a12a1620-d1d2-4de2-86b3-2ab8d36633b3",
+		"name": "Flask API Integration Tests",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "44397344",
+		"_collection_link": "https://ashishnegi-5384068.postman.co/workspace/ashish-negi's-Workspace~77f96d87-6493-4ed4-8d93-0256fe48b770/collection/44397344-a12a1620-d1d2-4de2-86b3-2ab8d36633b3?action=share&source=collection_link&creator=44397344"
+	},
+	"item": [
+		{
+			"name": "Create New User",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test 1: Check if the status code is 201 (Created)",
+							"pm.test(\"Status code is 201 Created\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"// Test 2: Check if the response body contains the expected name, email, and a number ID",
+							"pm.test(\"Response body contains name, email, and a valid ID\", function () {",
+							"    const responseJson = pm.response.json(); // Parse the response as JSON",
+							"    pm.expect(responseJson.name).to.eql(\"Jane Doe\");",
+							"    pm.expect(responseJson.email).to.eql(\"jane.doe@example.com\");",
+							"    pm.expect(responseJson.id).to.be.a('number'); // Check if ID is a number",
+							"    pm.expect(responseJson.id).to.be.above(0); // Check if ID is positive",
+							"});",
+							"",
+							"// Test 3: Store the newly created user's ID in an environment variable for subsequent tests",
+							"// This is crucial for integration testing where one request's output is another's input.",
+							"pm.test(\"Store new user ID for chaining tests\", function () {",
+							"    const responseJson = pm.response.json();",
+							"    pm.environment.set(\"new_user_id\", responseJson.id);",
+							"    console.log(\"New user ID created: \" + responseJson.id); // Log to Postman Console",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Jane Doe\",\n    \"email\": \"jane.doe@example.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/users",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Users",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test 1: Check if the status code is 200 (OK)",
+							"pm.test(\"Status code is 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"// Test 2: Check if the response is an array",
+							"pm.test(\"Response is an array of users\", function () {",
+							"    pm.expect(pm.response.json()).to.be.an('array');",
+							"});",
+							"",
+							"// Test 3: Verify that the newly created user is present in the list",
+							"pm.test(\"Response includes the newly created user\", function () {",
+							"    const users = pm.response.json();",
+							"    const newUserId = pm.environment.get(\"new_user_id\");",
+							"    const newUser = users.find(user => user.id === newUserId);",
+							"    pm.expect(newUser).to.be.an('object'); // Check if user object was found",
+							"    pm.expect(newUser.name).to.eql(\"Jane Doe\");",
+							"    pm.expect(newUser.email).to.eql(\"jane.doe@example.com\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/users",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User by ID",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test 1: Check if the status code is 200 (OK)",
+							"pm.test(\"Status code is 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"// Test 2: Verify that the response is the correct user",
+							"pm.test(\"Response is the correct user\", function () {",
+							"    const user = pm.response.json();",
+							"    const newUserId = pm.environment.get(\"new_user_id\");",
+							"    pm.expect(user.id).to.eql(newUserId);",
+							"    pm.expect(user.name).to.eql(\"Jane Doe\"); // Initial name",
+							"    pm.expect(user.email).to.eql(\"jane.doe@example.com\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/users/{{new_user_id}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"users",
+						"{{new_user_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update User",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test 1: Check if the status code is 200 (OK)",
+							"pm.test(\"Status code is 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"// Test 2: Verify that the user's name and email are updated in the response",
+							"pm.test(\"User name and email are updated\", function () {",
+							"    const responseJson = pm.response.json();",
+							"    pm.expect(responseJson.name).to.eql(\"Jane Smith\");",
+							"    pm.expect(responseJson.email).to.eql(\"jane.smith@updated.com\");",
+							"    pm.expect(responseJson.id).to.eql(pm.environment.get(\"new_user_id\"));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Jane Smith\",\n    \"email\": \"jane.smith@updated.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/users/{{new_user_id}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"users",
+						"{{new_user_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete User",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test 1: Check if the status code is 204 (No Content) for successful deletion",
+							"pm.test(\"Status code is 204 No Content\", function () {",
+							"    pm.response.to.have.status(204);",
+							"});",
+							"",
+							"// Optional Test 2: Attempt to GET the deleted user to confirm it's gone",
+							"// This demonstrates chaining requests within tests",
+							"const newUserId = pm.environment.get(\"new_user_id\");",
+							"const baseUrl = pm.environment.get(\"baseUrl\");",
+							"",
+							"pm.sendRequest({",
+							"    url: baseUrl + \"/users/\" + newUserId, // Construct the URL explicitly",
+							"    method: 'GET'",
+							"}, function (err, res) {",
+							"    // Check if there was a network error during the chained request",
+							"    if (err) {",
+							"        console.error(\"Error during chained GET request to verify deletion:\", err);",
+							"        pm.test(\"Chained GET request had a network error\", false); // Force this test to fail explicitly",
+							"        return;",
+							"    }",
+							"",
+							"    // Now, safely check the response status",
+							"    pm.test(\"User no longer exists after deletion (404 check)\", function() {",
+							"        // Log the actual status to confirm",
+							"        console.log(\"Status of chained GET after deletion:\", res.code); // Changed from res.status to res.code",
+							"        pm.expect(res.code).to.eql(404); // Changed from res.status to res.code",
+							"    });",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"Jane Smith\"\n}\n"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/users/{{new_user_id}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"users",
+						"{{new_user_id}}"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
