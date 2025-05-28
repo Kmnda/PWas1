@@ -10,7 +10,7 @@ pipeline {
             }
             steps {
                 script {
-                    sh 'set -e' // Exit on first error
+                    sh 'set -e'
 
                     echo "Installing Node.js and Newman..."
                     sh 'npm install -g newman'
@@ -19,12 +19,13 @@ pipeline {
                     echo "Setting up Python environment for API in test stage..."
                     sh 'apt update'
                     sh 'apt install -y python3-venv'
+                    sh 'apt install -y lsof' // <-- ADDED: Install lsof
                     sh 'python3 -m venv venv_test_env'
                     sh '. venv_test_env/bin/activate && pip install -r requirements.txt'
 
                     echo "Attempting to start Flask API in foreground for debugging..."
-                    // This is the CRITICAL line change:
-                   sh 'timeout 30s . venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1 || true'
+                    // CRITICAL FIX: Wrap the commands in 'bash -c "..."'
+                    sh 'timeout 30s bash -c ". venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1" || true'
 
                     echo "--- Checking directory contents for api.log ---"
                     sh 'ls -la'
@@ -63,7 +64,7 @@ pipeline {
             post {
                 always {
                     archiveArtifacts artifacts: 'newman-report.html, newman-report.json', fingerprint: true
-                    // This kill command will still attempt to find and stop the process.
+                    // lsof should now be available
                     sh "kill \$(lsof -t -i:${API_PORT}) || true"
                     echo "Flask API process stopped."
                 }
