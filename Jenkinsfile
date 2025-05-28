@@ -25,7 +25,7 @@ pipeline {
 
                     echo "Attempting to start Flask API in foreground for debugging..."
                     // CRITICAL FIX: Wrap the commands in 'bash -c "..."'
-                    sh 'timeout 30s bash -c ". venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1" || true'
+                    sh 'bash -c ". venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1" &'
 
                     echo "--- Checking directory contents for api.log ---"
                     sh 'ls -la'
