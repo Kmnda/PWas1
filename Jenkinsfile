@@ -19,12 +19,11 @@ pipeline {
                     echo "Setting up Python environment for API in test stage..."
                     sh 'apt update'
                     sh 'apt install -y python3-venv'
-                    sh 'apt install -y lsof' // <-- ADDED: Install lsof
+                    sh 'apt install -y lsof'
                     sh 'python3 -m venv venv_test_env'
                     sh '. venv_test_env/bin/activate && pip install -r requirements.txt'
 
-                    echo "Attempting to start Flask API in foreground for debugging..."
-                    // CRITICAL FIX: Wrap the commands in 'bash -c "..."'
+                    echo "Attempting to start Flask API in background..."
                     sh 'bash -c ". venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1 &"'
 
                     echo "--- Checking directory contents for api.log ---"
@@ -42,7 +41,9 @@ pipeline {
 
                         for i in $(seq 1 $MAX_RETRIES); do
                             echo "Attempt $i: Checking API at $API_URL"
-                            if curl -s -f -o /dev/null $API_URL; then
+                            echo "Processes listening on port ${API_PORT}:"
+                            lsof -i:${API_PORT} || true # Show processes on port, ignore errors if none
+                            if curl -v -f -o /dev/null $API_URL; then # Use -v for verbose output
                                 echo "API is up and running!"
                                 break
                             else
@@ -64,7 +65,6 @@ pipeline {
             post {
                 always {
                     archiveArtifacts artifacts: 'newman-report.html, newman-report.json', fingerprint: true
-                    // lsof should now be available
                     sh "kill \$(lsof -t -i:${API_PORT}) || true"
                     echo "Flask API process stopped."
                 }
