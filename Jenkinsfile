@@ -10,7 +10,7 @@ pipeline {
             }
             steps {
                 script {
-                    sh 'set -e' // <-- ADDED: Exit on first error
+                    sh 'set -e' // Exit on first error
 
                     echo "Installing Node.js and Newman..."
                     sh 'npm install -g newman'
@@ -22,21 +22,45 @@ pipeline {
                     sh 'python3 -m venv venv_test_env'
                     sh '. venv_test_env/bin/activate && pip install -r requirements.txt'
 
-                    echo "Starting Flask API for integration tests locally (SIMULATION for CI test run)..."
-                    // Use explicit path to python executable
-                    sh 'nohup . venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1 &'
-                    sh 'sleep 15'
-                    echo "Flask API started (attempted)."
+                    echo "Attempting to start Flask API in foreground for debugging..."
+                    // Temporarily run Flask with 'timeout' to capture startup errors
+                    // and allow the pipeline to proceed after a short duration.
+                    // The '|| true' ensures this specific sh command doesn't fail the pipeline
+                    // immediately if 'timeout' itself returns a non-zero exit, so we can
+                    // still see the log. The 'set -e' above will catch other errors.
+                    sh 'timeout 30s . venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1' || true
 
                     echo "--- Checking directory contents for api.log ---"
-                    sh 'ls -la' // <-- ADDED: List files to see if api.log exists
+                    sh 'ls -la' // List files to see if api.log was created
 
-                    echo "--- Flask API Logs (if any) ---"
-                    // Use 'cat' with '|| true' so that if api.log still doesn't exist, this step
-                    // doesn't cause the entire pipeline to fail (though 'set -e' would have caught it earlier).
-                    // We expect 'set -e' to fail earlier if Flask didn't start.
-                    sh 'cat api.log || true'
+                    echo "--- Flask API Startup Logs (from api.log) ---"
+                    sh 'cat api.log || true' // Print the log file, even if it's empty or missing
                     echo "--- Flask API Logs End ---"
+
+                    echo "--- Performing API health check ---"
+                    sh '''
+                        API_URL="http://127.0.0.1:${API_PORT}/"
+                        MAX_RETRIES=10
+                        RETRY_DELAY=5 # seconds
+
+                        for i in $(seq 1 $MAX_RETRIES); do
+                            echo "Attempt $i: Checking API at $API_URL"
+                            # curl -s (silent), -f (fail silently on HTTP errors), -o /dev/null (discard output)
+                            if curl -s -f -o /dev/null $API_URL; then
+                                echo "API is up and running!"
+                                break # Exit loop if API is ready
+                            else
+                                echo "API not yet ready. Waiting ${RETRY_DELAY}s..."
+                                sleep $RETRY_DELAY
+                            fi
+                            if [ $i -eq $MAX_RETRIES ]; then
+                                echo "ERROR: API did not start within the given time. Failing build."
+                                exit 1 # Fail the pipeline if max retries reached
+                            fi
+                        done
+                    '''
+                    echo "--- API Health Check Complete ---"
+
 
                     echo "Running Postman integration tests with Newman..."
                     sh "newman run \"Flask API Integration Tests.postman_collection.json\" -e \"Local Flask API.postman_environment.json\" --reporters cli,json,html --reporter-html-export newman-report.html --reporter-json-export newman-report.json"
@@ -45,6 +69,8 @@ pipeline {
             post {
                 always {
                     archiveArtifacts artifacts: 'newman-report.html, newman-report.json', fingerprint: true
+                    // This kill command will still attempt to find and stop the process
+                    // if it was started successfully in the background by a previous attempt or process.
                     sh "kill \$(lsof -t -i:${API_PORT}) || true"
                     echo "Flask API process stopped."
                 }
