@@ -24,7 +24,7 @@ pipeline {
 
                     echo "Attempting to start Flask API in foreground for debugging..."
                     // This is the CRITICAL line change:
-                    sh 'timeout 30s . venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1' || true
+                   sh 'timeout 30s . venv_test_env/bin/activate && venv_test_env/bin/python app.py > api.log 2>&1 || true'
 
                     echo "--- Checking directory contents for api.log ---"
                     sh 'ls -la'
